@@ -5,7 +5,7 @@
   "description": "Lefori Sales: a small CRM for the Lefori field sales team",
   "main": "server.js",
   "engines": {
-    "node": ">=20"
+    "node": "24.x"
   },
   "scripts": {
     "start": "node server.js",
