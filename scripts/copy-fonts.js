@@ -1,5 +1,5 @@
-// Copies the brand's stand-in fonts into public/fonts (run after changing weights: node scripts/copy-fonts.js).
-// The manual's fonts are Revoxa (wordmark) and Mont (text); Montserrat and Urbanist stand in for them.
+// Copies the app's fonts into public/fonts (run after changing weights: node scripts/copy-fonts.js).
+// Same fonts as the Lefori app: Montserrat for text, Outfit for the "Lefori" wordmark.
 // Both are SIL Open Font License; the licence files are copied alongside.
 const fs = require('fs');
 const path = require('path');
@@ -9,8 +9,8 @@ fs.mkdirSync(out, { recursive: true });
 const pkg = (name) => path.join(__dirname, '..', 'node_modules', '@fontsource', name);
 
 const files = [
-  ['urbanist', [400, 500, 600, 700, 800]],
-  ['montserrat', [500]],
+  ['montserrat', [400, 500, 600, 700, 800]],
+  ['outfit', [600]],
 ];
 for (const [name, weights] of files) {
   for (const w of weights) {

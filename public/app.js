@@ -71,12 +71,17 @@
   ICONS.back = '<path d="M15 18l-6-6 6-6"/>';
   ICONS.download = '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>';
 
-  // The LEFORI lockup from the brand manual (mark, wordmark, tagline).
-  const lockup = ({ onBlue = false, large = false, tagline = true } = {}) => `
-    <span class="lockup${onBlue ? ' on-blue' : ''}${large ? ' large' : ''}">
-      <img src="/icons/${onBlue ? 'mark-on-blue' : 'mark'}.svg" alt="">
-      <span class="words"><span class="wm">LEFORI</span>${tagline ? '<span class="tg">next starts here</span>' : ''}</span>
-    </span>`;
+  // Same brand line as the Lefori app: the mark and the "Lefori" wordmark, plus a Sales label.
+  const brand = () => '<span class="brand"><img src="/icons/mark.svg" alt=""><span class="wordmark">Lefori</span><span class="brand-tag">Sales</span></span>';
+  const backLink = (label) => `<button type="button" class="back-link" data-back>${icon('back')}<span>${esc(label)}</span></button>`;
+
+  // Dark inside the app by default, light on the login screen, as in the Lefori app.
+  const savedTheme = () => { try { return localStorage.getItem('theme'); } catch { return null; } };
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const meta = document.querySelector('meta[name=theme-color]');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#0f172a' : '#f8fafc');
+  }
 
   const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
 
@@ -122,39 +127,32 @@
   const NAV = [
     { href: '#/today', key: 'today', label: 'Today', icon: 'today' },
     { href: '#/leads', key: 'leads', label: 'Leads', icon: 'leads' },
-    { href: '#/add', key: 'add', label: 'Add lead', icon: 'plus' },
     { href: '#/numbers', key: 'numbers', label: 'Numbers', icon: 'chart' },
     { href: '#/more', key: 'more', label: 'More', icon: 'more' },
   ];
 
   function renderShell() {
+    applyTheme(savedTheme() || 'dark');
     root.innerHTML = `
-      <header class="topbar">
-        <button class="back" id="back" hidden aria-label="Back">${icon('back')}</button>
-        <span id="topBrand">${lockup({ onBlue: true, tagline: false })} <span class="app-tag">SALES</span></span>
-        <div class="title" id="topTitle" hidden></div>
-        <div class="spacer"></div>
-        <div class="who">${esc(firstName(state.user.name))}<small>${state.user.role === 'manager' ? 'Manager' : 'Agent'}</small></div>
-      </header>
       <main id="main"></main>
       <nav class="nav" aria-label="Main">
-        ${NAV.map((n) => `<a href="${n.href}" data-key="${n.key}" class="${n.key === 'add' ? 'add' : ''}">
-          ${n.key === 'add' ? `<span class="plus">${icon(n.icon)}</span>` : icon(n.icon)}<span>${n.label}</span></a>`).join('')}
+        <div class="side-brand">${brand()}</div>
+        ${NAV.map((n) => `<a href="${n.href}" data-key="${n.key}">${icon(n.icon)}<span>${n.label}</span></a>`).join('')}
+        <a href="#/add" class="side-add btn primary">${icon('plus')} Add lead</a>
       </nav>`;
-    document.getElementById('back').addEventListener('click', () => history.back());
   }
 
-  function setChrome(navKey, { title, back } = {}) {
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-back]')) return;
+    if (history.length > 1) history.back(); else location.hash = '#/leads';
+  });
+
+  function setChrome(navKey, { title } = {}) {
     document.querySelectorAll('.nav a').forEach((a) => {
       const on = a.dataset.key === navKey;
       a.classList.toggle('on', on);
       if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
-    document.getElementById('back').hidden = !back;
-    document.getElementById('topBrand').hidden = !!title;
-    const t = document.getElementById('topTitle');
-    t.hidden = !title;
-    t.textContent = title || '';
     document.title = title ? `${title} · Lefori Sales` : 'Lefori Sales';
   }
 
@@ -318,16 +316,17 @@
     main.innerHTML = `
       <div id="installSlot">${installBanner()}</div>
       <div class="page-head">
-        <div style="flex:1">
-          <h1 class="bar-under">${greet}, ${esc(firstName(state.user.name))}</h1>
-          <div class="sub">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+        <div class="grow">
+          <div class="eyebrow">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
+          <h1>${greet}, ${esc(firstName(state.user.name))}</h1>
         </div>
-        ${manager ? `<select id="todayAgent" aria-label="Whose follow-ups">${agentOptions(state.todayAgent, { everyone: 'Whole team' })}</select>` : ''}
+        <a class="btn primary" href="#/add">+ Add lead</a>
       </div>
-      <div class="summary">
-        <div class="tile ${data.overdue.length ? 'late' : ''}"><b>${data.overdue.length}</b><span>Late</span></div>
-        <div class="tile"><b>${data.today.length}</b><span>Due today</span></div>
-        <div class="tile"><b>${data.contactsToday}</b><span>Contacts today</span></div>
+      ${manager ? `<select id="todayAgent" class="agent-pick" aria-label="Whose follow-ups">${agentOptions(state.todayAgent, { everyone: 'Whole team' })}</select>` : ''}
+      <div class="stats">
+        <div class="stat ${data.overdue.length ? 'late' : ''}"><span class="stat-label">Late</span><b>${data.overdue.length}</b></div>
+        <div class="stat"><span class="stat-label">Due today</span><b>${data.today.length}</b></div>
+        <div class="stat"><span class="stat-label">Contacts</span><b>${data.contactsToday}</b></div>
       </div>
       <div id="lists">
         ${data.overdue.length ? section('Late follow-ups', data.overdue, '') : ''}
@@ -366,12 +365,12 @@
     const f = state.leadsFilter;
     const main = document.getElementById('main');
     main.innerHTML = `
-      <div class="page-head"><h1 class="bar-under">Leads</h1></div>
+      <div class="page-head"><h1 class="grow">Leads</h1><a class="btn primary" href="#/add">+ Add lead</a></div>
       <div class="searchbar">
         <input type="search" id="q" placeholder="Search name, owner, area or phone" value="${esc(f.q)}" aria-label="Search leads">
         ${manager ? `<select id="agent" aria-label="Agent">${agentOptions(f.agent, { everyone: 'All agents' })}</select>` : ''}
       </div>
-      <div class="filters" role="group" aria-label="Filter">
+      <div class="tabs" role="group" aria-label="Filter">
         ${CHIPS.map(([k, label]) => `<button type="button" data-chip="${k}" class="${f.chip === k ? 'on' : ''}" aria-pressed="${f.chip === k}">${label}</button>`).join('')}
       </div>
       <div id="results"><div class="loading">Loading…</div></div>`;
@@ -388,7 +387,7 @@
       } catch (err) { showError(err); }
     };
     bindLeadCards(results, load);
-    main.querySelector('.filters').addEventListener('click', (e) => {
+    main.querySelector('.tabs').addEventListener('click', (e) => {
       const b = e.target.closest('[data-chip]');
       if (!b) return;
       f.chip = b.dataset.chip;
@@ -470,7 +469,7 @@
 
   async function viewLeadForm(id, token) {
     const editing = !!id;
-    setChrome(editing ? 'leads' : 'add', editing ? { title: 'Edit lead', back: true } : {});
+    setChrome(editing ? 'leads' : 'add', { title: editing ? 'Edit lead' : 'Add a lead' });
     let lead = {
       stage: 'new', interest: '', firstVisitOn: today(), agentId: state.user.id, nextFollowUpOn: addDays(3),
     };
@@ -481,7 +480,8 @@
     const m = state.meta;
 
     main.innerHTML = `
-      ${editing ? '' : '<div class="page-head"><h1 class="bar-under">Add a lead</h1></div>'}
+      ${backLink(editing ? 'Back to the lead' : 'Back')}
+      <div class="page-head"><h1>${editing ? 'Edit lead' : 'Add a lead'}</h1></div>
       <form class="form" id="leadForm" novalidate>
         <div class="field">
           <label for="businessName">Business name</label>
@@ -629,7 +629,7 @@
   async function viewLead(id, token) {
     const { lead, visits } = await api(`/leads/${id}`);
     if (stale(token)) return;
-    setChrome('leads', { title: lead.ref, back: true });
+    setChrome('leads', { title: lead.businessName });
     const main = document.getElementById('main');
     const stageIdx = state.meta.stages.findIndex((s) => s.key === lead.stage);
     const lostAt = lead.stage === 'lost';
@@ -638,8 +638,10 @@
     const fact = (label, value, wide) => (value ? `<div class="${wide ? 'wide' : ''}"><dt>${label}</dt><dd>${value}</dd></div>` : '');
 
     main.innerHTML = `
+      ${backLink('Leads')}
       <div class="detail-head">
         <div style="flex:1;min-width:0">
+          <div class="eyebrow">${esc(lead.ref)}</div>
           <h1>${esc(lead.businessName)}</h1>
           <div class="sub">${[lead.ownerName, lead.businessType, lead.area].filter(Boolean).map(esc).join(' · ')}</div>
         </div>
@@ -708,8 +710,9 @@
     const back = document.createElement('div');
     back.className = 'sheet-back';
     back.innerHTML = `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
-      <div class="sheet-head"><h2>${esc(title)}</h2><button class="btn small" data-close>Close</button></div>
-      ${html}</div>`;
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-head"><h2>${esc(title)}</h2><button class="sheet-x" data-close aria-label="Close">&times;</button></div>
+      <div class="sheet-body">${html}</div></div>`;
     back.addEventListener('click', (e) => { if (e.target === back || e.target.closest('[data-close]')) closeSheet(); });
     document.body.appendChild(back);
     document.body.style.overflow = 'hidden';
@@ -824,7 +827,7 @@
 
     main.innerHTML = `
       <div class="page-head">
-        <h1 class="bar-under">${manager && !state.numbersAgent ? 'Team numbers' : 'Numbers'}</h1>
+        <h1 class="grow">${manager && !state.numbersAgent ? 'Team numbers' : 'Numbers'}</h1>
         ${manager ? `<select id="numAgent" aria-label="Whose numbers">${agentOptions(state.numbersAgent, { everyone: 'Whole team' })}</select>` : ''}
       </div>
       <div class="kpis">
@@ -880,7 +883,7 @@
     if (stale(token)) return;
     const main = document.getElementById('main');
     main.innerHTML = `
-      <div class="page-head"><h1 class="bar-under">More</h1></div>
+      <div class="page-head"><h1 class="grow">More</h1></div>
       <div class="list-item">
         <div class="grow"><b>${esc(state.user.name)}</b><div class="muted">${esc(state.user.phone)} · ${state.user.role === 'manager' ? 'Manager' : 'Agent'}</div></div>
         <button class="btn small" id="changePin">Change PIN</button>
@@ -903,11 +906,22 @@
           <div id="importResult" style="margin-top:10px"></div>
         </div>` : ''}
 
+      <div class="section"><h2>Appearance</h2></div>
+      <div class="list-item">
+        <div class="grow"><b>Dark mode</b><div class="muted">Easier on the eyes indoors. Switch it off in bright sun.</div></div>
+        <label class="switch"><input type="checkbox" id="darkToggle" aria-label="Dark mode"${document.documentElement.getAttribute('data-theme') === 'dark' ? 'checked' : ''}><span></span></label>
+      </div>
+
       <div class="section"><h2>Put it on your home screen</h2></div>
       <div id="installCard">${installCard()}</div>
 
       <p style="margin-top:24px"><button class="btn block" id="logout">Log out</button></p>`;
 
+    document.getElementById('darkToggle').addEventListener('change', (e) => {
+      const theme = e.target.checked ? 'dark' : 'light';
+      try { localStorage.setItem('theme', theme); } catch { /* private mode */ }
+      applyTheme(theme);
+    });
     document.getElementById('logout').addEventListener('click', async () => {
       try { await api('/auth/logout', { method: 'POST' }); } catch { /* already out */ }
       state.user = null;
@@ -1022,20 +1036,23 @@
   function renderLogin() {
     closeSheet();
     document.title = 'Log in · Lefori Sales';
+    applyTheme('light');
     root.innerHTML = `
       <div class="login">
-        <div class="cover-top">${lockup({ large: true })}</div>
-        <div class="cover-body">
-          <h1 class="bar-under">Sales team</h1>
-          <p class="sub">Log in with your phone number and the PIN your manager gave you.</p>
+        <div class="login-card">
+          ${brand()}
+          <div class="eyebrow" style="margin-top:22px">Sales team sign in</div>
+          <h1 class="login-title">Enter your follow-ups</h1>
+          <p class="sub">Use your phone number and the PIN your manager gave you.</p>
           <form class="form" id="loginForm" novalidate>
-            <div class="field"><label for="lPhone">Phone number</label>
+            <div class="field"><label class="caps" for="lPhone">Phone number</label>
               <input type="tel" id="lPhone" inputmode="tel" autocomplete="username" placeholder="07XX XXX XXX"></div>
-            <div class="field"><label for="lPin">PIN</label>
-              <input type="password" id="lPin" inputmode="numeric" autocomplete="current-password" maxlength="6"></div>
+            <div class="field"><label class="caps" for="lPin">PIN</label>
+              <input type="password" id="lPin" inputmode="numeric" autocomplete="current-password" maxlength="6" placeholder="4 to 6 digits"></div>
             <div class="error-box" id="loginError" hidden></div>
-            <button class="btn accent block" type="submit" id="loginBtn">Log in</button>
+            <button class="btn dark block" type="submit" id="loginBtn">Sign in</button>
           </form>
+          <p class="sub small-print">Forgot your PIN? Ask your manager to set a new one.</p>
         </div>
       </div>`;
     const form = document.getElementById('loginForm');
@@ -1076,7 +1093,7 @@
       state.user = user;
       await start();
     } catch (err) {
-      if (err.status !== 401) root.innerHTML = `<div class="login"><div class="box"><div class="error-box">${esc(err.message)}</div></div></div>`;
+      if (err.status !== 401) root.innerHTML = `<div class="login"><div class="login-card"><div class="error-box">${esc(err.message)}</div></div></div>`;
     }
   })();
 
