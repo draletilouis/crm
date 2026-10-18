@@ -1,0 +1,27 @@
+<!doctype html>
+<!-- App icon: the manual's secondary logo colours (mark in orange and white on Lefori Blue).
+     ?pad=0.2 sets the empty margin as a share of the width; maskable icons need about 0.25. -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; background: #1A3862; overflow: hidden; }
+  body { display: grid; place-items: center; }
+  svg { display: block; }
+</style>
+</head>
+<body>
+<svg id="m" viewBox="0 0 340 332"><path fill="#FF922B" d="M0 86H170V166H80V252H170V332H0Z"/><path fill="#FFFFFF" d="M170 0H340V246H170V166H260V80H170Z"/></svg>
+<script>
+  // Headless Chrome keeps a minimum window size, so lay out to ?size= rather than the window.
+  const q = new URLSearchParams(location.search);
+  const size = Number(q.get('size') || 512);
+  const pad = Number(q.get('pad') || 0.2);
+  document.body.style.width = document.body.style.height = size + 'px';
+  const w = size * (1 - pad * 2);
+  const m = document.getElementById('m');
+  m.setAttribute('width', w);
+  m.setAttribute('height', w * 332 / 340);
+</script>
+</body>
+</html>

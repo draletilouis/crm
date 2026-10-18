@@ -68,6 +68,16 @@
     wa: '<path d="M3 21l1.6-4.7A8.5 8.5 0 1 1 7.9 19.6Z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.3-1.8-1-1 .8a4 4 0 0 1-2-2l.8-1-1-1.8Z"/>',
     log: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
   };
+  ICONS.back = '<path d="M15 18l-6-6 6-6"/>';
+  ICONS.download = '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>';
+
+  // The LEFORI lockup from the brand manual (mark, wordmark, tagline).
+  const lockup = ({ onBlue = false, large = false, tagline = true } = {}) => `
+    <span class="lockup${onBlue ? ' on-blue' : ''}${large ? ' large' : ''}">
+      <img src="/icons/${onBlue ? 'mark-on-blue' : 'mark'}.svg" alt="">
+      <span class="words"><span class="wm">LEFORI</span>${tagline ? '<span class="tg">next starts here</span>' : ''}</span>
+    </span>`;
+
   const icon = (name) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
 
   function toast(message, isError) {
@@ -120,11 +130,11 @@
   function renderShell() {
     root.innerHTML = `
       <header class="topbar">
-        <button class="back" id="back" hidden aria-label="Back">&larr;</button>
-        <img src="/icons/lefori-mark-dark.svg" alt="" id="topLogo">
-        <div class="brand" id="topTitle">Lefori <small>Sales</small></div>
+        <button class="back" id="back" hidden aria-label="Back">${icon('back')}</button>
+        <span id="topBrand">${lockup({ onBlue: true, tagline: false })} <span class="app-tag">SALES</span></span>
+        <div class="title" id="topTitle" hidden></div>
         <div class="spacer"></div>
-        <div class="who">${esc(firstName(state.user.name))}${state.user.role === 'manager' ? ' · Manager' : ''}</div>
+        <div class="who">${esc(firstName(state.user.name))}<small>${state.user.role === 'manager' ? 'Manager' : 'Agent'}</small></div>
       </header>
       <main id="main"></main>
       <nav class="nav" aria-label="Main">
@@ -141,8 +151,10 @@
       if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     document.getElementById('back').hidden = !back;
-    document.getElementById('topLogo').hidden = !!back;
-    document.getElementById('topTitle').innerHTML = title ? esc(title) : 'Lefori <small>Sales</small>';
+    document.getElementById('topBrand').hidden = !!title;
+    const t = document.getElementById('topTitle');
+    t.hidden = !title;
+    t.textContent = title || '';
     document.title = title ? `${title} · Lefori Sales` : 'Lefori Sales';
   }
 
@@ -230,6 +242,64 @@
     state.team = users;
   }
 
+  // ---------- Install on the phone's home screen
+
+  const install = { prompt: null };
+  const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const installDismissed = () => { try { return localStorage.getItem('installDismissed') === '1'; } catch { return false; } };
+
+  function installBanner() {
+    if (isStandalone() || installDismissed() || (!install.prompt && !isIos())) return '';
+    return `<div class="install">
+      <img src="/icons/icon-192.png" alt="">
+      <div class="grow"><b>Put Lefori Sales on your phone</b>${install.prompt ? 'It opens full screen, like an app.' : 'Tap Share, then Add to Home Screen.'}</div>
+      ${install.prompt ? '<button class="btn accent small" data-install>Install</button>' : ''}
+      <button class="x" data-install-dismiss aria-label="Hide">&times;</button>
+    </div>`;
+  }
+
+  function installCard() {
+    if (isStandalone()) return '<div class="card sub">You are using the installed app.</div>';
+    if (install.prompt) {
+      return `<div class="card"><p class="sub" style="margin-top:0">Install it once and it opens from your home screen, full screen, like any other app.</p>
+        <button class="btn accent" data-install>${icon('download')} Install the app</button></div>`;
+    }
+    if (isIos()) return '<div class="card sub">In Safari, tap <b>Share</b>, then <b>Add to Home Screen</b>.</div>';
+    return '<div class="card sub">In Chrome, tap the <b>⋮</b> menu, then <b>Add to Home screen</b> or <b>Install app</b>.</div>';
+  }
+
+  function refreshInstallUi() {
+    const slot = document.getElementById('installSlot');
+    if (slot) slot.innerHTML = installBanner();
+    const card = document.getElementById('installCard');
+    if (card) card.innerHTML = installCard();
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    install.prompt = e;
+    refreshInstallUi();
+  });
+  window.addEventListener('appinstalled', () => {
+    install.prompt = null;
+    toast('Lefori Sales is on your home screen');
+    refreshInstallUi();
+  });
+  document.addEventListener('click', async (e) => {
+    if (e.target.closest('[data-install]') && install.prompt) {
+      const p = install.prompt;
+      install.prompt = null;
+      p.prompt();
+      await p.userChoice.catch(() => {});
+      refreshInstallUi();
+    }
+    if (e.target.closest('[data-install-dismiss]')) {
+      try { localStorage.setItem('installDismissed', '1'); } catch { /* private mode */ }
+      refreshInstallUi();
+    }
+  });
+
   // ---------- Today
 
   async function viewToday(m, token) {
@@ -246,9 +316,10 @@
       ${list.length ? list.map((l) => leadCard(l, { showAgent: manager })).join('') : `<div class="empty">${emptyText}</div>`}`;
 
     main.innerHTML = `
+      <div id="installSlot">${installBanner()}</div>
       <div class="page-head">
         <div style="flex:1">
-          <h1>${greet}, ${esc(firstName(state.user.name))}</h1>
+          <h1 class="bar-under">${greet}, ${esc(firstName(state.user.name))}</h1>
           <div class="sub">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
         </div>
         ${manager ? `<select id="todayAgent" aria-label="Whose follow-ups">${agentOptions(state.todayAgent, { everyone: 'Whole team' })}</select>` : ''}
@@ -295,7 +366,7 @@
     const f = state.leadsFilter;
     const main = document.getElementById('main');
     main.innerHTML = `
-      <div class="page-head"><h1>Leads</h1></div>
+      <div class="page-head"><h1 class="bar-under">Leads</h1></div>
       <div class="searchbar">
         <input type="search" id="q" placeholder="Search name, owner, area or phone" value="${esc(f.q)}" aria-label="Search leads">
         ${manager ? `<select id="agent" aria-label="Agent">${agentOptions(f.agent, { everyone: 'All agents' })}</select>` : ''}
@@ -410,7 +481,7 @@
     const m = state.meta;
 
     main.innerHTML = `
-      ${editing ? '' : '<div class="page-head"><h1>Add a lead</h1></div>'}
+      ${editing ? '' : '<div class="page-head"><h1 class="bar-under">Add a lead</h1></div>'}
       <form class="form" id="leadForm" novalidate>
         <div class="field">
           <label for="businessName">Business name</label>
@@ -753,7 +824,7 @@
 
     main.innerHTML = `
       <div class="page-head">
-        <h1>${manager && !state.numbersAgent ? 'Team numbers' : 'Numbers'}</h1>
+        <h1 class="bar-under">${manager && !state.numbersAgent ? 'Team numbers' : 'Numbers'}</h1>
         ${manager ? `<select id="numAgent" aria-label="Whose numbers">${agentOptions(state.numbersAgent, { everyone: 'Whole team' })}</select>` : ''}
       </div>
       <div class="kpis">
@@ -809,7 +880,7 @@
     if (stale(token)) return;
     const main = document.getElementById('main');
     main.innerHTML = `
-      <div class="page-head"><h1>More</h1></div>
+      <div class="page-head"><h1 class="bar-under">More</h1></div>
       <div class="list-item">
         <div class="grow"><b>${esc(state.user.name)}</b><div class="muted">${esc(state.user.phone)} · ${state.user.role === 'manager' ? 'Manager' : 'Agent'}</div></div>
         <button class="btn small" id="changePin">Change PIN</button>
@@ -833,7 +904,7 @@
         </div>` : ''}
 
       <div class="section"><h2>Put it on your home screen</h2></div>
-      <div class="card sub">On Android, open this page in Chrome, tap the ⋮ menu, then <b>Add to Home screen</b>. It opens like an app.</div>
+      <div id="installCard">${installCard()}</div>
 
       <p style="margin-top:24px"><button class="btn block" id="logout">Log out</button></p>`;
 
@@ -953,17 +1024,17 @@
     document.title = 'Log in · Lefori Sales';
     root.innerHTML = `
       <div class="login">
-        <div class="box">
-          <div class="logo"><img src="/icons/lefori-mark.svg" alt=""><b>Lefori</b><span>Sales</span></div>
-          <h1 style="margin-bottom:6px">Log in</h1>
-          <p class="sub" style="margin:0 0 18px">Use your phone number and the PIN your manager gave you.</p>
+        <div class="cover-top">${lockup({ large: true })}</div>
+        <div class="cover-body">
+          <h1 class="bar-under">Sales team</h1>
+          <p class="sub">Log in with your phone number and the PIN your manager gave you.</p>
           <form class="form" id="loginForm" novalidate>
             <div class="field"><label for="lPhone">Phone number</label>
               <input type="tel" id="lPhone" inputmode="tel" autocomplete="username" placeholder="07XX XXX XXX"></div>
             <div class="field"><label for="lPin">PIN</label>
               <input type="password" id="lPin" inputmode="numeric" autocomplete="current-password" maxlength="6"></div>
             <div class="error-box" id="loginError" hidden></div>
-            <button class="btn primary block" type="submit" id="loginBtn">Log in</button>
+            <button class="btn accent block" type="submit" id="loginBtn">Log in</button>
           </form>
         </div>
       </div>`;
@@ -1009,7 +1080,7 @@
     }
   })();
 
-  if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
+  if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
   }
 })();

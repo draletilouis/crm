@@ -1,6 +1,8 @@
 // Caches the app shell so it opens fast on a weak connection. API calls always go to the network.
-const CACHE = 'lefori-sales-v1';
-const SHELL = ['/', '/styles.css?v=1', '/app.js?v=1', '/manifest.webmanifest', '/icons/lefori-mark.svg', '/icons/lefori-mark-dark.svg', '/icons/lefori-icon-192.png'];
+const CACHE = 'lefori-sales-v2';
+const SHELL = ['/', '/styles.css?v=2', '/app.js?v=2', '/manifest.webmanifest', '/icons/mark.svg', '/icons/mark-on-blue.svg',
+  '/icons/icon-192.png', '/fonts/urbanist-latin-500-normal.woff2', '/fonts/urbanist-latin-700-normal.woff2',
+  '/fonts/urbanist-latin-800-normal.woff2', '/fonts/montserrat-latin-500-normal.woff2'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
