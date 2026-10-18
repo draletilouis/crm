@@ -1,0 +1,16 @@
+{
+  "name": "Lefori Sales",
+  "short_name": "Lefori Sales",
+  "description": "Leads, visits and follow-ups for the Lefori sales team",
+  "start_url": "/#/today",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#183862",
+  "theme_color": "#183862",
+  "icons": [
+    { "src": "/icons/lefori-icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/lefori-icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/lefori-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/lefori-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

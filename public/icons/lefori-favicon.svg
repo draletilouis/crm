@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>Lefori</title>
+  <style>.navy{fill:#183862}</style>
+  <!-- Pixel-aligned optical variant: both central openings are 8 x 8 units. -->
+  <path fill="#F79421" d="M0 8H16V16H8V24H16V32H0Z"/>
+  <path class="navy" d="M16 0H32V24H16V16H24V8H16Z"/>
+</svg>
